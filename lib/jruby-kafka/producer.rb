@@ -21,7 +21,7 @@ class Kafka::Producer
     @brokers = options[:broker_list] ? options[:broker_list] : "localhost:9092"
 
     required_acks = ['-1', '0', '1']
-    @request_required_acks = options[:request_required_acks] && required_acks.include? options[:request_required_acks] ? options[:request_required_acks] : '0'
+    @request_required_acks = options[:request_required_acks] && (required_acks.include? options[:request_required_acks]) ? options[:request_required_acks] : '0'
 
     @request_timeout_ms = options[:request_timeout_ms] ? options[:request_timeout_ms] : '10000'
     @producer_type = options[:producer_type] ? options[:producer_type] : 'sync'
@@ -32,7 +32,7 @@ class Kafka::Producer
     required_codecs = ["#{Java::kafka::message::NoCompressionCodec.name}",
                          "#{Java::kafka::message::GZIPCompressionCodec.name}",
                          "#{Java::kafka::message::SnappyCompressionCodec.name}"]
-    @compression_codec = options[:compression_codec] && required_codecs.include? options[:compression_codec]  ? options[:compression_codec] : "#{Java::kafka::message::NoCompressionCodec.name}"
+    @compression_codec = options[:compression_codec] && (required_codecs.include? options[:compression_codec]) ? options[:compression_codec] : "#{Java::kafka::message::NoCompressionCodec.name}"
 
     @compressed_topics = options[:compressed_topics] ? options[:compressed_topics] : nil
     @message_send_max_retries = options[:message_send_max_retries] ? options[:message_send_max_retries] : '3'
@@ -92,7 +92,7 @@ class Kafka::Producer
     properties.put("queue.buffering.max.messages", @queue_buffering_max_messages)
     properties.put("queue.enqueue.timeout.ms", @queue_enqueue_timeout_ms)
     properties.put("batch.num.messages", @batch_num_messages)
-    properties.put("send.buffer.bytes", @send_buffer.bytes)
+    properties.put("send.buffer.bytes", @send_buffer_bytes)
     properties.put("client.id", @client_id)
 
     return Java::kafka::producer::ProducerConfig.new(properties)
