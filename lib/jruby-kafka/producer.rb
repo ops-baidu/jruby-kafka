@@ -18,36 +18,33 @@ class Kafka::Producer
   def initialize(options={})
     validate_required_arguments(options)
 
-    @brokers = options[:broker_list]
-    @serializer_class = 'kafka.serializer.StringEncoder'
-    @partitioner_class = nil
-    @request_required_acks = '0'
-    @compression_codec = "#{Java::kafka::message::NoCompressionCodec.name}"
-    @compressed_topics = ''
+    @brokers = options[:broker_list] ? options[:broker_list] : "localhost:9092"
 
-    if options[:partitioner_class]
-      @partitioner_class = "#{options[:partitioner_class]}"
-    end
+    required_acks = ['-1', '0', '1']
+    @request_required_acks = options[:request_required_acks] && (required_acks.include? options[:request_required_acks]) ? options[:request_required_acks] : '0'
 
-    if options[:request_required_acks]
-      @request_required_acks = "#{options[:request_required_acks]}"
-    end
+    @request_timeout_ms = options[:request_timeout_ms] ? options[:request_timeout_ms] : '10000'
+    @producer_type = options[:producer_type] ? options[:producer_type] : 'sync'
+    @serializer_class = options[:serializer_class] ? options[:serializer_class] : 'kafka.serializer.StringEncoder'
+    @key_serializer_class = options[:key_serializer_class] ? options[:key_serializer_class] : @serializer_class
+    @partitioner_class = options[:partitioner_class] ? options[:partitioner_class] : nil
 
-    if options[:compression_codec]
-      required_codecs = ["#{Java::kafka::message::NoCompressionCodec.name}",
+    required_codecs = ["#{Java::kafka::message::NoCompressionCodec.name}",
                          "#{Java::kafka::message::GZIPCompressionCodec.name}",
                          "#{Java::kafka::message::SnappyCompressionCodec.name}"]
-      if not required_codecs.include? options[:compression_codec]
-        raise(ArgumentError, "#{options[:compression_codec]} is not one of required codecs: #{required_codecs}")
-      end
-      @compression_codec = options[:compression_codec]
-    end
+    @compression_codec = options[:compression_codec] && (required_codecs.include? options[:compression_codec]) ? options[:compression_codec] : "#{Java::kafka::message::NoCompressionCodec.name}"
 
-    if options[:compressed_topics]
-      if @compression_codec != 'none'
-        @compressed_topics = options[:compressed_topics]
-      end
-    end
+    @compressed_topics = options[:compressed_topics] ? options[:compressed_topics] : nil
+    @message_send_max_retries = options[:message_send_max_retries] ? options[:message_send_max_retries] : '3'
+    @retry_backoff_ms = options[:retry_backoff_ms] ? options[:retry_backoff_ms] : '100'
+    @topic_metadata_refresh_interval_ms = options[:topic_metadata_refresh_interval_ms] ? options[:topic_metadata_refresh_interval_ms] : '600000' # 600 * 1000
+    @queue_buffering_max_ms = options[:queue_buffering_max_ms] ? options[:queue_buffering_max_ms] : '5000'
+    @queue_buffering_max_messages = options[:queue_buffering_max_messages] ? options[:queue_buffering_max_messages] : '10000'
+    @queue_enqueue_timeout_ms = options[:queue_enqueue_timeout_ms] ? options[:queue_enqueue_timeout_ms] : '-1'
+    @batch_num_messages = options[:batch_num_messages] ? options[:batch_num_messages] : '200'
+    @send_buffer_bytes = options[:send_buffer_bytes] ? options[:send_buffer_bytes] : '102400' # 100 * 1024
+    @client_id = options[:client_id] ? options[:client_id] : ''
+
   end
 
   private
@@ -81,12 +78,23 @@ class Kafka::Producer
     properties = java.util.Properties.new()
     properties.put("metadata.broker.list", @brokers)
     properties.put("request.required.acks", @request_required_acks)
-    if not @partitioner_class.nil?
-      properties.put("partitioner.class", @partitioner_class)
-    end
+    properties.put("request.timeout.ms", @request_timeout_ms)
+    properties.put("producer.type", @producer_type)
     properties.put("serializer.class", @serializer_class)
+    properties.put("key.serializer.class", @key_serializer_class)
+    properties.put("partitioner.class", @partitioner_class) if not @partitioner_class.nil?
     properties.put("compression.codec", @compression_codec)
     properties.put("compressed.topics", @compressed_topics)
+    properties.put("message.send.max.retries", @message_send_max_retries)
+    properties.put("retry.backoff.ms", @retry_backoff_ms)
+    properties.put("topic.metadata.refresh.interval.ms", @topic_metadata_refresh_interval_ms)
+    properties.put("queue.buffering.max.ms", @queue_buffering_max_ms)
+    properties.put("queue.buffering.max.messages", @queue_buffering_max_messages)
+    properties.put("queue.enqueue.timeout.ms", @queue_enqueue_timeout_ms)
+    properties.put("batch.num.messages", @batch_num_messages)
+    properties.put("send.buffer.bytes", @send_buffer_bytes)
+    properties.put("client.id", @client_id)
+
     return Java::kafka::producer::ProducerConfig.new(properties)
   end
 end
